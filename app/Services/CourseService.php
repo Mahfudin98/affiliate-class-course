@@ -21,9 +21,20 @@ class CourseService
         protected VideoRepository $video
     ) {}
 
-    public function getAll(array $fields, array $relation = [])
-    {
-        return $this->course->getAll($fields, $relation);
+    public function getAll(
+        array $fields,
+        array $relation = [],
+        string $q = '',
+        int $paginate = 0,
+        int $limit = 0
+    ) {
+        return $this->course->getAll(
+            $fields,
+            $paginate,
+            $q,
+            $relation,
+            $limit
+        );
     }
 
     public function getById(int $id, array $fields, array $relation = [])

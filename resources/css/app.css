@@ -16,6 +16,9 @@
     --font-display: 'Inter', 'sans-serif';
     --font-body: 'Inter', 'sans-serif';
 
+    --spacing-8xl: 1440px;
+    --spacing-16.25: 65px;
+
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);

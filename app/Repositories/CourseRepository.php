@@ -14,13 +14,33 @@ class CourseRepository
         //
     }
 
-    public function getAll(array $field, array $relation = [])
-    {
-        $query = Course::select($field);
+    public function getAll(
+        array $field,
+        int $paginate = 0,
+        string $q = '',
+        array $relation = [],
+        int $limit = 0
+    ) {
+        $query = Course::query();
+        $query->select($field)->when(function ($queri) use ($q) {
+            if ($q != '') {
+                return $queri->where('title', $q);
+            }
+        });
+
         if ($relation) {
             $query->with($relation);
         }
-        return $query->get();
+
+        if ($limit) {
+            $query->limit($limit);
+        }
+
+        if ($paginate !== 0) {
+            return $query->paginate($paginate);
+        } else {
+            return $query->get();
+        }
     }
 
     public function getById(int $id, array $field, array $relation = [])
