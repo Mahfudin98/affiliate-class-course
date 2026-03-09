@@ -22,6 +22,8 @@ export interface Module {
     id: number;
     course_id: number;
     title: string;
+    description: string;
+    difficulty_level: DifficultyLevel;
     order_index: number;
     duration_minutes: number;
     created_at: string;

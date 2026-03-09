@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Affiliate\KelasController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -19,6 +20,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('courses', CourseController::class);
     Route::post('courses/search-youtube', [CourseController::class, 'searchYoutubeVideos'])->name('courses.search-youtube');
     Route::get('courses/module/{module_id}', [CourseController::class, 'showModule'])->name('courses.module.show');
+
+    Route::resource('users', UsersController::class);
 });
 
 require __DIR__ . '/settings.php';

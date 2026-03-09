@@ -9,6 +9,8 @@ class Module extends Model
     protected $fillable = [
         'course_id',
         'title',
+        'description',
+        'difficulty_level_id',
         'order_index',
         'duration_minutes'
     ];
@@ -32,5 +34,10 @@ class Module extends Model
     {
         return $this->belongsToMany(YouTubeVideo::class, 'videos')
             ->withPivot('order_index', 'notes', 'start_time', 'end_time', 'is_primary');
+    }
+
+    public function difficultyLevel()
+    {
+        return $this->belongsTo(DifficultyLevel::class);
     }
 }

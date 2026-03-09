@@ -18,6 +18,8 @@
 
     --spacing-8xl: 1440px;
     --spacing-16.25: 65px;
+    --spacing-105: 600px;
+    --spacing-9xl: 1600px;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);

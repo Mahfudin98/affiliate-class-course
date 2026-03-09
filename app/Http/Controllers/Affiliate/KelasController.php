@@ -7,6 +7,7 @@ use App\Services\CourseService;
 use App\Services\DifficultyLevelService;
 use App\Services\TopicService;
 use App\Services\YoutubeService;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class KelasController extends Controller
@@ -36,11 +37,22 @@ class KelasController extends Controller
 
     public function detailCourse(int $id)
     {
-        return Inertia::render('affiliate/kelas/course');
+        $course = $this->course->getById($id, ['*'], ['topic', 'difficultyLevel', 'modules', 'modules.videos', 'modules.videos.youtubeVideo']);
+        return Inertia::render('affiliate/kelas/course', [
+            'course_data' => $course
+        ]);
     }
 
-    public function detailModule(int $id)
+    public function detailModule(int $module_id, Request $request)
     {
-        return Inertia::render('affiliate/kelas/module');
+        $request->validate([
+            'q' => ['nullable', 'numeric']
+        ]);
+        $videoId = $request->input('q');
+        $module = $this->course->getModuleById($module_id, ['*'], ['videos', 'videos.youtubeVideo']);
+        return Inertia::render('affiliate/kelas/module', [
+            'module_data' => $module,
+            'video_id' => $videoId
+        ]);
     }
 }
