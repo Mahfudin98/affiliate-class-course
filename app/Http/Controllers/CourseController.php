@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Course\StoreCourseRequest;
+use App\Http\Requests\Course\UpdateCourseRequest;
 use App\Services\CourseService;
 use App\Services\DifficultyLevelService;
 use App\Services\TopicService;
@@ -69,17 +70,26 @@ class CourseController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(int $id)
     {
-        //
+        $course = $this->course->getById($id, ['*'], ['topic', 'difficultyLevel', 'modules', 'modules.videos', 'modules.videos.youtubeVideo']);
+        $topics = $this->topic->getAll(['*']);
+        $difficulties = $this->difficulty->getAll(['*']);
+
+        return Inertia::render('admin/course/edit', [
+            'course_data' => $course,
+            'topics' => $topics,
+            'difficulties' => $difficulties,
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateCourseRequest $request, int $id)
     {
-        //
+        $this->course->update($id, $request->validated());
+        return redirect()->route('courses.index')->with('success', 'Course update successfully.');
     }
 
     /**

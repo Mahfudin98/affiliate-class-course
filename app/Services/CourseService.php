@@ -98,4 +98,70 @@ class CourseService
             $course->save();
         });
     }
+
+    public function update(int $id, array $data)
+    {
+        return DB::transaction(function () use ($id, $data) {
+            $courseId = $this->course->getById($id, ['*']);
+
+            $course = $this->course->update($id, [
+                'title' => $data['title'],
+                'description' => $data['description'],
+                'thumbnail_url' => $data['thumbnail_url'],
+                'difficulty_level_id' => $data['difficulty_level_id'],
+                'topic_id' => $data['topic_id'],
+                'duration_hours' => $data['duration_hours'],
+                'is_new' => $data['is_new'] ?? true,
+            ]);
+
+            $modules = $data['modules'] ?? [];
+            $totalModules = count($modules);
+            $course->module_count = $totalModules;
+
+            foreach ($modules as $moduleIndex => $moduleData) {
+                $module = $this->module->updateOrCreate(
+                    [
+                        'id' => $moduleData['id'] ?? null,
+                    ],
+                    [
+                        'course_id' => $course->id,
+                        'difficulty_level_id' => $moduleData['difficulty_level_id'] ?? null,
+                        'title' => $moduleData['title'] ?? 'Module ' . ($moduleIndex + 1),
+                        'description' => $moduleData['description'] ?? '-',
+                        'order_index' => $moduleIndex + 1,
+                        'duration_minutes' => $moduleData['duration_minutes'] ?? 0
+                    ]
+                );
+
+                $videos = $moduleData['videos'] ?? [];
+                foreach ($videos as $videoIndex => $videoData) {
+                    $youtubeId = $videoData['youtube_id'];
+                    $video = $this->youtube->getByYoutubeId($youtubeId, ['*']);
+
+                    if (!$video) {
+                        $video = $this->youtube->fetchFromYoutube($youtubeId);
+                    }
+
+                    if ($video) {
+                        $module->youtubeVideos()->syncWithoutDetaching([$video->id => [
+                            'order_index' => $videoData['order_index'] ?? ($videoIndex + 1),
+                            'is_primary' => $videoData['is_primary'] ?? ($videoIndex === 0),
+                            'notes' => $videoData['notes'] ?? null,
+                            'start_time' => $videoData['start_time'] ?? null,
+                            'end_time' => $videoData['end_time'] ?? null,
+                        ]]);
+                    } else {
+                        Log::warning("YouTube video not found: $youtubeId for module {$module->id}");
+                    }
+                }
+            }
+
+            $course->save();
+        });
+    }
+
+    public function destroy(int $id)
+    {
+        return $this->course->destroy($id);
+    }
 }

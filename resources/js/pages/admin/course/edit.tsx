@@ -1,5 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Plus, Save, Search, Trash2 } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -26,12 +26,14 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import courses from '@/routes/courses';
 import type { BreadcrumbItem } from '@/types';
+import type { Course } from '@/types/course';
 import type { DifficultyLevel, Topic } from '@/types/difficulty-topic';
+import { ModuleSection } from './create';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Course Create',
-        href: courses.create(),
+        href: courses.index(),
     },
 ];
 
@@ -68,9 +70,12 @@ type CourseForm = {
     duration_hours: string;
     is_new: boolean;
     modules: ModulesForm[];
+    delete_old_structure?: boolean;
+    delete_old_videos?: boolean;
 };
 
 interface PageProps {
+    course_data: Course;
     topics: Topic[];
     difficulties: DifficultyLevel[];
     [key: string]: unknown;
@@ -89,32 +94,40 @@ interface VideoSearchResult {
     };
     error?: string;
 }
-export default function CourseCreate() {
-    const { topics, difficulties } = usePage<PageProps>().props;
-    const { data, setData, post, processing, errors } = useForm<CourseForm>({
-        title: '',
-        description: '',
-        thumbnail_url: '',
-        difficulty_level_id: '',
-        topic_id: '',
-        duration_hours: '',
-        is_new: true,
-        modules: [
-            {
-                title: '',
-                duration_minutes: 0,
-                videos: [
-                    {
-                        youtube_id: '',
-                        order_index: 1,
-                        is_primary: true,
-                        notes: '',
-                        start_time: null,
-                        end_time: null,
-                    },
-                ],
-            },
-        ],
+
+export default function CourseEdit() {
+    const { course_data, topics, difficulties } = usePage<PageProps>().props;
+
+    const transformedModules: ModulesForm[] = course_data.modules.map(
+        (module) => ({
+            id: module.id,
+            title: module.title,
+            description: module.description ?? '',
+            difficulty_level_id: module.difficulty_level_id ?? undefined,
+            duration_minutes: module.duration_minutes ?? 0,
+            videos: module.videos.map((video) => ({
+                youtube_id: video.youtube_video.youtube_id,
+                order_index: video.order_index,
+                is_primary: video.is_primary,
+                notes: video.notes ?? '',
+                start_time: video.start_time ?? null,
+                end_time: video.end_time ?? null,
+            })),
+        }),
+    );
+
+    const { data, setData, put, processing, errors } = useForm<CourseForm>({
+        title: course_data.title,
+        description: course_data.description,
+        thumbnail_url: course_data.thumbnail_url,
+        difficulty_level_id: String(course_data.difficulty_level_id),
+        topic_id: String(course_data.topic_id),
+        duration_hours: String(course_data.duration_hours),
+        is_new: course_data.is_new,
+        modules: transformedModules,
+
+        delete_old_structure: false,
+        delete_old_videos: false,
     });
 
     const [videoInfo, setVideoInfo] = useState<
@@ -124,7 +137,7 @@ export default function CourseCreate() {
 
     const submit = (e: { preventDefault: () => void }) => {
         e.preventDefault();
-        post(courses.store().url);
+        put(courses.update(course_data.id).url);
     };
 
     const addModule = () => {
@@ -132,6 +145,8 @@ export default function CourseCreate() {
             ...data.modules,
             {
                 title: '',
+                description: '',
+                difficulty_level_id: 0,
                 duration_minutes: 0,
                 videos: [
                     {
@@ -282,7 +297,8 @@ export default function CourseCreate() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Caourse Create" />
+            <Head title="Caourse Edit" />
+
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
                     <CardHeader>
@@ -291,6 +307,9 @@ export default function CourseCreate() {
                             Buat course baru dengan modules, lessons, dan
                             YouTube videos
                         </FieldDescription>
+                        {/* <pre className="overflow-x-auto rounded-lg bg-gray-950 p-6 font-mono text-sm whitespace-pre-wrap text-gray-100 shadow-lg">
+                            {JSON.stringify(course_data, null, 2)}
+                        </pre> */}
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={submit}>
@@ -522,433 +541,5 @@ export default function CourseCreate() {
                 </Card>
             </div>
         </AppLayout>
-    );
-}
-
-type ModuleSectionProps = {
-    module: ModulesForm;
-    moduleIndex: number;
-    onUpdateModule: (index: number, key: string, value: unknown) => void;
-    onRemoveModule: (index: number) => void;
-    onAddVideo: (moduleIndex: number) => void;
-    onRemoveVideo: (moduleIndex: number, videoIndex: number) => void;
-    onUpdateVideo: (
-        moduleIndex: number,
-        videoIndex: number,
-        key: string,
-        value: unknown,
-    ) => void;
-    onSearchYoutube: (moduleIndex: number, videoIndex: number) => Promise<void>;
-    videoInfo: Record<string, VideoInfo | null>;
-    searching: Record<string, boolean>;
-    errors: Record<string, any>;
-    difficulties: DifficultyLevel[];
-};
-
-export function ModuleSection({
-    module,
-    moduleIndex,
-    onUpdateModule,
-    onRemoveModule,
-    onAddVideo,
-    onRemoveVideo,
-    onUpdateVideo,
-    onSearchYoutube,
-    videoInfo,
-    searching,
-    errors,
-    difficulties,
-}: ModuleSectionProps) {
-    return (
-        <Card className="border-l-4 border-l-blue-500">
-            <CardContent>
-                <div className="space-y-4">
-                    <div className="flex items-end gap-4">
-                        <div className="w-full space-y-4">
-                            <div className="flex items-end gap-4">
-                                <Field className="flex-1">
-                                    <FieldLabel
-                                        htmlFor={`module-title-${moduleIndex}`}
-                                    >
-                                        Module Title
-                                    </FieldLabel>
-                                    <Input
-                                        id={`module-title-${moduleIndex}`}
-                                        type="text"
-                                        value={module.title}
-                                        onChange={(e) =>
-                                            onUpdateModule(
-                                                moduleIndex,
-                                                'title',
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="Module 1: Introduction"
-                                    />
-                                </Field>
-                                <Field className="w-32">
-                                    <FieldLabel
-                                        htmlFor={`module-duration-${moduleIndex}`}
-                                    >
-                                        Duration (min)
-                                    </FieldLabel>
-                                    <Input
-                                        id={`module-duration-${moduleIndex}`}
-                                        type="number"
-                                        min={0}
-                                        value={module.duration_minutes}
-                                        onChange={(e) =>
-                                            onUpdateModule(
-                                                moduleIndex,
-                                                'duration_minutes',
-                                                parseInt(e.target.value) || 0,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                            </div>
-                            <Field>
-                                <FieldLabel
-                                    htmlFor={`module-difficulty_level_id-${moduleIndex}`}
-                                >
-                                    Difficulty Level
-                                </FieldLabel>
-                                <Select
-                                    value={
-                                        module.difficulty_level_id
-                                            ? String(module.difficulty_level_id)
-                                            : ''
-                                    }
-                                    onValueChange={(value) =>
-                                        onUpdateModule(
-                                            moduleIndex,
-                                            'difficulty_level_id',
-                                            value ? Number(value) : undefined,
-                                        )
-                                    }
-                                >
-                                    <SelectTrigger
-                                        id={`difficulty_level_id-${moduleIndex}`}
-                                    >
-                                        <SelectValue placeholder="Pilih Difficulty Level" />
-                                    </SelectTrigger>
-
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            {difficulties.map((i) => (
-                                                <SelectItem
-                                                    key={i.id}
-                                                    value={String(i.id)}
-                                                >
-                                                    {i.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                                {/* {errors.difficulty_level_id && (
-                                    <FieldError>
-                                        {errors.difficulty_level_id}
-                                    </FieldError>
-                                )} */}
-                            </Field>
-
-                            <Field>
-                                <FieldLabel
-                                    htmlFor={`module-description-${moduleIndex}`}
-                                >
-                                    Deskripsi
-                                </FieldLabel>
-                                <Textarea
-                                    id={`module-description-${moduleIndex}`}
-                                    value={module.description ?? ''}
-                                    onChange={(e) =>
-                                        onUpdateModule(
-                                            moduleIndex,
-                                            'description',
-                                            e.target.value,
-                                        )
-                                    }
-                                    placeholder="Deskripsi course..."
-                                    rows={4}
-                                />
-                                {errors.description && (
-                                    <FieldError>
-                                        {errors.description}
-                                    </FieldError>
-                                )}
-                            </Field>
-                        </div>
-                        <div className="flex items-start">
-                            <Button
-                                type="button"
-                                onClick={() => onRemoveModule(moduleIndex)}
-                                variant="destructive"
-                                size="sm"
-                            >
-                                <Trash2 className="size-4" />
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3 border-t pt-4">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-sm font-medium">
-                                Videos
-                            </Label>
-                            <Button
-                                type="button"
-                                onClick={() => onAddVideo(moduleIndex)}
-                                variant="outline"
-                                size="sm"
-                                className="border-amber-500 hover:border-amber-600"
-                            >
-                                <Plus className="size-3" />
-                                Add Video
-                            </Button>
-                        </div>
-                        {module.videos.map((video, videoIndex) => (
-                            <VideoSection
-                                key={videoIndex}
-                                video={video}
-                                moduleIndex={moduleIndex}
-                                videoIndex={videoIndex}
-                                onRemoveVideo={onRemoveVideo}
-                                onUpdateVideo={onUpdateVideo}
-                                onSearchYoutube={onSearchYoutube}
-                                videoInfo={videoInfo}
-                                searching={searching}
-                            />
-                        ))}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-// Video Section Component
-function VideoSection({
-    video,
-    moduleIndex,
-    videoIndex,
-    onRemoveVideo,
-    onUpdateVideo,
-    onSearchYoutube,
-    videoInfo,
-    searching,
-}: {
-    video: VideoForm;
-    moduleIndex: number;
-    videoIndex: number;
-    onRemoveVideo: (moduleIndex: number, videoIndex: number) => void;
-    onUpdateVideo: (
-        moduleIndex: number,
-        videoIndex: number,
-        key: string,
-        value: unknown,
-    ) => void;
-    onSearchYoutube: (moduleIndex: number, videoIndex: number) => Promise<void>;
-    videoInfo: Record<string, VideoInfo | null>;
-    searching: Record<string, boolean>;
-}) {
-    const infoKey = `${moduleIndex}-${videoIndex}`;
-    const info = videoInfo[infoKey];
-    const isSearching = searching[infoKey] || false;
-
-    return (
-        <Card className="border-l-4 border-l-amber-500">
-            <CardContent className="pt-4">
-                <div className="space-y-3">
-                    {/* YouTube Search */}
-                    <Field>
-                        <FieldLabel htmlFor={`video-youtube-${infoKey}`}>
-                            YouTube URL or ID
-                        </FieldLabel>
-                        <div className="flex gap-2">
-                            <Input
-                                id={`video-youtube-${infoKey}`}
-                                type="text"
-                                value={video.youtube_id}
-                                onChange={(e) =>
-                                    onUpdateVideo(
-                                        moduleIndex,
-                                        videoIndex,
-                                        'youtube_id',
-                                        e.target.value,
-                                    )
-                                }
-                                placeholder="https://youtube.com/watch?v=... or dQw4w9WgXcQ"
-                            />
-                            <Button
-                                type="button"
-                                onClick={() =>
-                                    onSearchYoutube(moduleIndex, videoIndex)
-                                }
-                                disabled={isSearching}
-                                className="gap-1"
-                            >
-                                <Search className="size-4" />
-                                {isSearching ? 'Searching...' : 'Search'}
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={() =>
-                                    onRemoveVideo(moduleIndex, videoIndex)
-                                }
-                                variant="destructive"
-                                size="sm"
-                            >
-                                <Trash2 className="size-4" />
-                            </Button>
-                        </div>
-                    </Field>
-
-                    {/* Video Info Preview */}
-                    {info && (
-                        <div className="rounded-lg border border-gray-200 bg-background p-3">
-                            <div className="flex gap-3">
-                                {info.thumbnail_url && (
-                                    <img
-                                        src={info.thumbnail_url}
-                                        alt={info.title}
-                                        className="h-16 w-24 rounded object-cover"
-                                    />
-                                )}
-                                <div className="flex-1">
-                                    <p className="text-sm font-semibold">
-                                        {info.title}
-                                    </p>
-                                    <p className="text-xs text-gray-600">
-                                        {info.channel_name} •{' '}
-                                        {info.formatted_duration}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Video Settings */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <Field>
-                            <FieldLabel htmlFor={`video-order-${infoKey}`}>
-                                Order
-                            </FieldLabel>
-                            <Input
-                                id={`video-order-${infoKey}`}
-                                type="number"
-                                min={1}
-                                value={video.order_index}
-                                onChange={(e) =>
-                                    onUpdateVideo(
-                                        moduleIndex,
-                                        videoIndex,
-                                        'order_index',
-                                        parseInt(e.target.value) || 1,
-                                    )
-                                }
-                            />
-                        </Field>
-                        <Field>
-                            <Label
-                                className="text-xs"
-                                htmlFor={`video-primary-${infoKey}`}
-                            >
-                                Primary
-                            </Label>
-                            <div className="flex items-center gap-2 pt-2">
-                                <Checkbox
-                                    id={`video-primary-${infoKey}`}
-                                    checked={video.is_primary}
-                                    onChange={(checked) =>
-                                        onUpdateVideo(
-                                            moduleIndex,
-                                            videoIndex,
-                                            'is_primary',
-                                            checked,
-                                        )
-                                    }
-                                />
-                                <Label
-                                    htmlFor={`video-primary-${infoKey}`}
-                                    className="text-xs"
-                                >
-                                    Mark as primary
-                                </Label>
-                            </div>
-                        </Field>
-                    </div>
-
-                    {/* Trim Settings */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <Field>
-                            <FieldLabel htmlFor={`video-start-${infoKey}`}>
-                                Start Time (sec)
-                            </FieldLabel>
-                            <Input
-                                id={`video-start-${infoKey}`}
-                                type="number"
-                                min={0}
-                                value={video.start_time || ''}
-                                onChange={(e) =>
-                                    onUpdateVideo(
-                                        moduleIndex,
-                                        videoIndex,
-                                        'start_time',
-                                        e.target.value
-                                            ? parseInt(e.target.value)
-                                            : null,
-                                    )
-                                }
-                                placeholder="0"
-                            />
-                        </Field>
-                        <Field>
-                            <FieldLabel htmlFor={`video-end-${infoKey}`}>
-                                End Time (sec)
-                            </FieldLabel>
-                            <Input
-                                id={`video-end-${infoKey}`}
-                                type="number"
-                                min={0}
-                                value={video.end_time || ''}
-                                onChange={(e) =>
-                                    onUpdateVideo(
-                                        moduleIndex,
-                                        videoIndex,
-                                        'end_time',
-                                        e.target.value
-                                            ? parseInt(e.target.value)
-                                            : null,
-                                    )
-                                }
-                                placeholder="Leave empty for full"
-                            />
-                        </Field>
-                    </div>
-
-                    {/* Notes */}
-                    <Field>
-                        <FieldLabel htmlFor={`video-notes-${infoKey}`}>
-                            Notes
-                        </FieldLabel>
-                        <Textarea
-                            id={`video-notes-${infoKey}`}
-                            value={video.notes}
-                            onChange={(e) =>
-                                onUpdateVideo(
-                                    moduleIndex,
-                                    videoIndex,
-                                    'notes',
-                                    e.target.value,
-                                )
-                            }
-                            placeholder="Notes about this video..."
-                            rows={2}
-                        />
-                    </Field>
-                </div>
-            </CardContent>
-        </Card>
     );
 }

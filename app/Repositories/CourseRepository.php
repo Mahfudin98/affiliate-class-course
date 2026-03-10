@@ -60,7 +60,9 @@ class CourseRepository
     public function update(int $id, array $data)
     {
         $course = Course::findOrFail($id);
-        return $course->update($data);
+        $course->update($data);
+
+        return $course;
     }
 
     public function destroy(int $id)

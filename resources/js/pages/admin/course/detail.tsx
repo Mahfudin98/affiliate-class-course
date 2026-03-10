@@ -1,5 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { EllipsisVertical } from 'lucide-react';
+import { EllipsisVertical, PenIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -49,6 +49,11 @@ export default function CourseDetail() {
                             <CardTitle className="text-xl">
                                 Daftar Module Video
                             </CardTitle>
+                            <Link href={courses.edit(course_data.id)}>
+                                <Button size={'icon'}>
+                                    <PenIcon className="size-5" />
+                                </Button>
+                            </Link>
                         </div>
                         {course_data.modules.map((module) => (
                             <CardModule key={module.id} module={module} />

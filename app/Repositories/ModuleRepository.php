@@ -39,6 +39,11 @@ class ModuleRepository
         return $module->update($data);
     }
 
+    public function updateOrCreate(array $attributes, array $values = [])
+    {
+        return Module::updateOrCreate($attributes, $values);
+    }
+
     public function destroy(int $id)
     {
         $module = Module::findOrFail($id);
